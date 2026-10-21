@@ -1,0 +1,14 @@
+
+{
+  "name": "jevelis-seller-tools",
+  "version": "1.0.0",
+  "description": "Jevelis Seller Tools dashboard dan backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
