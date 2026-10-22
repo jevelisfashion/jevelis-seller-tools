@@ -13,15 +13,13 @@ const dashboardPath = path.join(
 
 const server = http.createServer((req, res) => {
   res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
 
-  // Ambil path saja, abaikan query string dan garis miring di akhir.
   let pathname;
 
   try {
     pathname = new URL(req.url, "http://localhost").pathname;
-    if (pathname !== "/") {
-      pathname = pathname.replace(/\/+$/, "");
-    }
+    if (pathname !== "/") pathname = pathname.replace(/\/+$/, "");
   } catch {
     res.writeHead(400, {
       "Content-Type": "application/json; charset=utf-8"
@@ -46,7 +44,6 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {
       "Content-Type": "text/html; charset=utf-8"
     });
-
     fs.createReadStream(dashboardPath).pipe(res);
     return;
   }
@@ -56,40 +53,78 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {
       "Content-Type": "application/json; charset=utf-8"
     });
-
     res.end(JSON.stringify({
       success: true,
       app: "Jevelis Seller Tools",
       server: "Aktif",
       shopee: "Belum terhubung",
-      message: "Server aktif. Koneksi API Shopee belum dikonfigurasi."
+      message: "Callback tersedia; otorisasi dan pertukaran token belum dikonfigurasi."
     }));
     return;
   }
 
-  // Status koneksi produk Shopee
-  if (
-    req.method === "GET" &&
-    pathname === "/api/shopee/products"
-  ) {
+  // Callback awal Shopee
+  if (req.method === "GET" && pathname === "/shopee/callback") {
+    const params = new URL(req.url, "http://localhost").searchParams;
+    const code = params.get("code");
+    const shopId = params.get("shop_id");
+    const mainAccountId = params.get("main_account_id");
+    const error = params.get("error");
+
+    res.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8"
+    });
+
+    if (error) {
+      res.end(
+        "<!doctype html><html lang=\"id\"><meta charset=\"utf-8\">" +
+        "<title>Otorisasi Shopee</title><body><h2>Otorisasi belum berhasil</h2>" +
+        "<p>Shopee mengembalikan respons error. Silakan kembali ke aplikasi.</p>" +
+        "</body></html>"
+      );
+      return;
+    }
+
+    if (!code || (!shopId && !mainAccountId)) {
+      res.end(
+        "<!doctype html><html lang=\"id\"><meta charset=\"utf-8\">" +
+        "<title>Callback Shopee</title><body><h2>Callback Shopee aktif</h2>" +
+        "<p>Endpoint sudah tersedia, tetapi belum menerima kode otorisasi lengkap. " +
+        "Jangan bagikan URL callback yang berisi parameter ke siapa pun.</p>" +
+        "</body></html>"
+      );
+      return;
+    }
+
+    // Jangan tampilkan atau simpan kode otorisasi di halaman.
+    // Pertukaran code menjadi token ditambahkan pada tahap berikutnya.
+    res.end(
+      "<!doctype html><html lang=\"id\"><meta charset=\"utf-8\">" +
+      "<title>Otorisasi Shopee</title><body><h2>Respons otorisasi diterima</h2>" +
+      "<p>Callback berhasil menerima parameter. Pertukaran token belum diaktifkan.</p>" +
+      "<p>Kembali ke Jevelis Seller Tools untuk langkah berikutnya.</p>" +
+      "</body></html>"
+    );
+    return;
+  }
+
+  // Endpoint produk Shopee belum terhubung
+  if (req.method === "GET" && pathname === "/api/shopee/products") {
     res.writeHead(200, {
       "Content-Type": "application/json; charset=utf-8"
     });
-
     res.end(JSON.stringify({
       success: false,
       connected: false,
       products: [],
-      message: "Autentikasi API Shopee belum dikonfigurasi."
+      message: "Otorisasi dan autentikasi API Shopee belum dikonfigurasi."
     }));
     return;
   }
 
-  // Endpoint lain tidak ditemukan
   res.writeHead(404, {
     "Content-Type": "application/json; charset=utf-8"
   });
-
   res.end(JSON.stringify({
     success: false,
     message: "Endpoint tidak ditemukan.",
@@ -102,6 +137,6 @@ server.listen(PORT, HOST, () => {
   console.log(" JEVELIS SELLER TOOLS");
   console.log(" Server aktif!");
   console.log(` Port: ${PORT}`);
-  console.log(` Status: http://localhost:${PORT}/api/status`);
+  console.log(" Callback: /shopee/callback");
   console.log("==================================");
 });
