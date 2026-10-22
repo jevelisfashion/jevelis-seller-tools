@@ -14,7 +14,27 @@ const dashboardPath = path.join(
 const server = http.createServer((req, res) => {
   res.setHeader("Cache-Control", "no-store");
 
-  if (req.method === "GET" && req.url === "/") {
+  // Ambil path saja, abaikan query string dan garis miring di akhir.
+  let pathname;
+
+  try {
+    pathname = new URL(req.url, "http://localhost").pathname;
+    if (pathname !== "/") {
+      pathname = pathname.replace(/\/+$/, "");
+    }
+  } catch {
+    res.writeHead(400, {
+      "Content-Type": "application/json; charset=utf-8"
+    });
+    res.end(JSON.stringify({
+      success: false,
+      message: "Alamat permintaan tidak valid."
+    }));
+    return;
+  }
+
+  // Dashboard utama
+  if (req.method === "GET" && pathname === "/") {
     if (!fs.existsSync(dashboardPath)) {
       res.writeHead(500, {
         "Content-Type": "text/plain; charset=utf-8"
@@ -26,11 +46,13 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, {
       "Content-Type": "text/html; charset=utf-8"
     });
+
     fs.createReadStream(dashboardPath).pipe(res);
     return;
   }
 
-  if (req.method === "GET" && req.url === "/api/status") {
+  // Status server
+  if (req.method === "GET" && pathname === "/api/status") {
     res.writeHead(200, {
       "Content-Type": "application/json; charset=utf-8"
     });
@@ -45,7 +67,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.method === "GET" && req.url === "/api/shopee/products") {
+  // Status koneksi produk Shopee
+  if (
+    req.method === "GET" &&
+    pathname === "/api/shopee/products"
+  ) {
     res.writeHead(200, {
       "Content-Type": "application/json; charset=utf-8"
     });
@@ -59,13 +85,15 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Endpoint lain tidak ditemukan
   res.writeHead(404, {
     "Content-Type": "application/json; charset=utf-8"
   });
 
   res.end(JSON.stringify({
     success: false,
-    message: "Endpoint tidak ditemukan."
+    message: "Endpoint tidak ditemukan.",
+    path: pathname
   }));
 });
 
